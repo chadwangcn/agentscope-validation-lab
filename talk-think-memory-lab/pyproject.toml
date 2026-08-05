@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "talk-think-memory-lab"
+version = "0.1.0"
+description = "Isolated backend for Talker/Thinker and memory experiments"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.135.1",
+  "fastmcp==3.2.4",
+  "httpx==0.28.1",
+  "neo4j==6.2.0",
+  "pydantic==2.12.5",
+  "reme-ai==0.4.1.3",
+  "agentscope @ git+https://github.com/agentscope-ai/agentscope.git@9edf84602c3af9399808afa448cd222f8fe1f7f9",
+  "uvicorn[standard]==0.41.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest==9.1.1",
+  "pytest-asyncio==1.3.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

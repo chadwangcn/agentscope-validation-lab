@@ -1,0 +1,234 @@
+diff --git a/examples/web_ui/frontend/src/api/client.ts b/examples/web_ui/frontend/src/api/client.ts
+--- a/examples/web_ui/frontend/src/api/client.ts
++++ b/examples/web_ui/frontend/src/api/client.ts
+@@ -2,6 +2,13 @@ import { toast } from 'sonner';
+
+ export const getBaseUrl = () => localStorage.getItem('server_url') ?? '';
+ export const getUserId = () => localStorage.getItem('username') ?? '';
++export const buildApiUrl = (path: string) => {
++	const base = new URL(getBaseUrl());
++	base.pathname = `${base.pathname.replace(/\/+$/, '')}/`;
++	base.search = '';
++	base.hash = '';
++	return new URL(path.replace(/^\/+/, ''), base);
++};
+
+ /**
+  * Structured error thrown for non-2xx HTTP responses.
+@@ -48,7 +55,7 @@ async function extractErrorDetail(res: Response): Promise<string> {
+
+ async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+ 	const { method = 'GET', body, params, silent = false } = options;
+-	const url = new URL(path, getBaseUrl());
++	const url = buildApiUrl(path);
+ 	if (params) {
+ 		Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+ 	}
+@@ -75,7 +82,7 @@ async function streamRequest(
+ 	options: RequestOptions & { signal?: AbortSignal } = {},
+ ): Promise<Response> {
+ 	const { method = 'GET', body, params, signal, silent = false } = options;
+-	const url = new URL(path, getBaseUrl());
++	const url = buildApiUrl(path);
+ 	if (params) {
+ 		Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+ 	}
+diff --git a/examples/web_ui/frontend/src/api/knowledgeBase.ts b/examples/web_ui/frontend/src/api/knowledgeBase.ts
+--- a/examples/web_ui/frontend/src/api/knowledgeBase.ts
++++ b/examples/web_ui/frontend/src/api/knowledgeBase.ts
+@@ -1,4 +1,4 @@
+-import { ApiError, client, getBaseUrl, getUserId } from './client';
++import { ApiError, buildApiUrl, client, getUserId } from './client';
+ import type {
+ 	CreateKnowledgeBaseRequest,
+ 	CreateKnowledgeBaseResponse,
+@@ -60,7 +60,7 @@ function uploadDocumentXhr(
+ 		}
+
+ 		const xhr = new XMLHttpRequest();
+-		const url = new URL(`/knowledge_bases/${knowledgeBaseId}/documents`, getBaseUrl());
++		const url = buildApiUrl(`/knowledge_bases/${knowledgeBaseId}/documents`);
+ 		xhr.open('POST', url.toString(), true);
+ 		xhr.setRequestHeader('X-User-ID', getUserId());
+
+diff --git a/examples/web_ui/frontend/src/api/workspace.ts b/examples/web_ui/frontend/src/api/workspace.ts
+--- a/examples/web_ui/frontend/src/api/workspace.ts
++++ b/examples/web_ui/frontend/src/api/workspace.ts
+@@ -1,4 +1,4 @@
+-import { ApiError, client, getBaseUrl, getUserId } from './client';
++import { ApiError, buildApiUrl, client, getUserId } from './client';
+ import type { UploadProgress } from './knowledgeBase';
+ import type {
+ 	AddFromLibraryResponse,
+@@ -49,7 +49,7 @@ function uploadSkillXhr(
+ 		}
+
+ 		const xhr = new XMLHttpRequest();
+-		const url = new URL('/workspace/skill/upload', getBaseUrl());
++		const url = buildApiUrl('/workspace/skill/upload');
+ 		url.searchParams.set('agent_id', agentId);
+ 		url.searchParams.set('session_id', sessionId);
+ 		xhr.open('POST', url.toString(), true);
+diff --git a/examples/web_ui/frontend/src/App.tsx b/examples/web_ui/frontend/src/App.tsx
+--- a/examples/web_ui/frontend/src/App.tsx
++++ b/examples/web_ui/frontend/src/App.tsx
+@@ -1,6 +1,6 @@
+ import { Onborda, OnbordaProvider } from 'onborda';
+ import { useMemo, useState } from 'react';
+-import { createBrowserRouter, Navigate, RouterProvider, useNavigate } from 'react-router-dom';
++import { createHashRouter, Navigate, RouterProvider, useNavigate } from 'react-router-dom';
+ import { Toaster } from 'sonner';
+
+ import { MCPHubPage } from './pages/mcp';
+@@ -29,7 +29,7 @@ function SetupPageRoute() {
+ 	);
+ }
+
+-const router = createBrowserRouter([
++const router = createHashRouter([
+ 	{
+ 		element: <AppLayout />,
+ 		errorElement: <RouteError />,
+diff --git a/examples/web_ui/frontend/vite.config.ts b/examples/web_ui/frontend/vite.config.ts
+--- a/examples/web_ui/frontend/vite.config.ts
++++ b/examples/web_ui/frontend/vite.config.ts
+@@ -6,6 +6,7 @@ import { defineConfig } from 'vite';
+ import svgr from 'vite-plugin-svgr';
+
+ export default defineConfig({
++	base: '/agentscope/',
+ 	plugins: [react(), tailwindcss(), svgr()],
+ 	server: {
+ 		proxy: {
+diff --git a/examples/web_ui/frontend/src/components/chat/TextInput.tsx b/examples/web_ui/frontend/src/components/chat/TextInput.tsx
+--- a/examples/web_ui/frontend/src/components/chat/TextInput.tsx
++++ b/examples/web_ui/frontend/src/components/chat/TextInput.tsx
+@@ -35,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
+ import type { ReplyPhase } from '@/hooks/useMessages';
+ import { useTranslation } from '@/i18n/useI18n.ts';
+ import { cn } from '@/lib/utils';
++import { createClientId } from '@/utils/common';
+
+ /**
+  * Represents a file that has been selected and processed (or is being processed).
+@@ -212,7 +213,7 @@ export const TextInput = forwardRef<TextInputRef, TextInputProps>(
+ 			// Add text block
+ 			if (value.trim()) {
+ 				const textBlock: TextBlock = {
+-					id: crypto.randomUUID(),
++					id: createClientId(),
+ 					type: 'text',
+ 					text: value.trim(),
+ 					created_at: new Date().toISOString(),
+diff --git a/examples/web_ui/frontend/src/hooks/useMessages.ts b/examples/web_ui/frontend/src/hooks/useMessages.ts
+--- a/examples/web_ui/frontend/src/hooks/useMessages.ts
++++ b/examples/web_ui/frontend/src/hooks/useMessages.ts
+@@ -16,6 +16,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
+ import { sessionApi } from '@/api';
+ import { chatApi } from '@/api';
+ import { useAudioManager } from '@/context/AudioContext';
++import { createClientId } from '@/utils/common';
+
+ /**
+  * One pending subagent HITL request, projected from a team *member*
+@@ -361,7 +362,7 @@ export function useMessages(
+
+ 			const event: UserConfirmResultEvent = {
+ 				type: EventType.USER_CONFIRM_RESULT,
+-				id: crypto.randomUUID(),
++				id: createClientId(),
+ 				created_at: new Date().toISOString(),
+ 				reply_id: replyId,
+ 				confirm_results: [
+@@ -450,7 +451,7 @@ export function useMessages(
+
+ 			const event: UserConfirmResultEvent = {
+ 				type: EventType.USER_CONFIRM_RESULT,
+-				id: crypto.randomUUID(),
++				id: createClientId(),
+ 				created_at: new Date().toISOString(),
+ 				reply_id: entry.reply_id, // worker's reply_id; backend maps it
+ 				confirm_results: [
+diff --git a/examples/web_ui/frontend/src/pages/chat/ChatViewport.tsx b/examples/web_ui/frontend/src/pages/chat/ChatViewport.tsx
+--- a/examples/web_ui/frontend/src/pages/chat/ChatViewport.tsx
++++ b/examples/web_ui/frontend/src/pages/chat/ChatViewport.tsx
+@@ -40,6 +40,7 @@ import { useMessages } from '@/hooks/useMessages';
+ import { useSessions } from '@/hooks/useSessions';
+ import { useWorkspace } from '@/hooks/useWorkspace.ts';
+ import { useTranslation } from '@/i18n/useI18n';
++import { createClientId } from '@/utils/common';
+
+ interface ChatViewportProps {
+ 	/**
+@@ -702,7 +703,7 @@ export function ChatViewport({ agentId, sessionId, onTeamUpdated }: ChatViewport
+ 										const filePath = (file as File & { path?: string }).path;
+ 										if (filePath) {
+ 											return {
+-												id: crypto.randomUUID(),
++												id: createClientId(),
+ 												type: 'data' as const,
+ 												source: {
+ 													type: 'url' as const,
+@@ -717,7 +718,7 @@ export function ChatViewport({ agentId, sessionId, onTeamUpdated }: ChatViewport
+ 										if (file.type === 'text/plain') {
+ 											const text = await file.text();
+ 											return {
+-												id: crypto.randomUUID(),
++												id: createClientId(),
+ 												type: 'text' as const,
+ 												text: `[File: ${file.name}]\n${text}`,
+ 												created_at: new Date().toISOString(),
+@@ -731,7 +732,7 @@ export function ChatViewport({ agentId, sessionId, onTeamUpdated }: ChatViewport
+ 										}
+ 										const base64 = btoa(binary);
+ 										return {
+-											id: crypto.randomUUID(),
++											id: createClientId(),
+ 											type: 'data' as const,
+ 											source: {
+ 												type: 'base64' as const,
+diff --git a/examples/web_ui/frontend/src/utils/common.ts b/examples/web_ui/frontend/src/utils/common.ts
+--- a/examples/web_ui/frontend/src/utils/common.ts
++++ b/examples/web_ui/frontend/src/utils/common.ts
+@@ -1,3 +1,41 @@
++/**
++ * Generate a UUID-shaped client identifier in both secure and plain-HTTP contexts.
++ *
++ * ``crypto.randomUUID`` is restricted to secure contexts in browsers, while this
++ * development UI is also served over a public HTTP IP. ``getRandomValues`` remains
++ * available there and gives us enough entropy to construct an RFC 4122 v4 UUID.
++ * The final branch is only for unusually old browser engines and these identifiers
++ * are message-local correlation keys, not authentication or authorization tokens.
++ *
++ * @returns A unique client-side identifier.
++ */
++export function createClientId(): string {
++	const browserCrypto = globalThis.crypto;
++	if (typeof browserCrypto?.randomUUID === 'function') {
++		return browserCrypto.randomUUID();
++	}
++
++	const bytes = new Uint8Array(16);
++	if (typeof browserCrypto?.getRandomValues === 'function') {
++		browserCrypto.getRandomValues(bytes);
++	} else {
++		for (let index = 0; index < bytes.length; index += 1) {
++			bytes[index] = Math.floor(Math.random() * 256);
++		}
++	}
++	bytes[6] = (bytes[6] & 0x0f) | 0x40;
++	bytes[8] = (bytes[8] & 0x3f) | 0x80;
++
++	const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
++	return [
++		hex.slice(0, 4).join(''),
++		hex.slice(4, 6).join(''),
++		hex.slice(6, 8).join(''),
++		hex.slice(8, 10).join(''),
++		hex.slice(10).join(''),
++	].join('-');
++}
++
+ /**
+  * Copy a string to the system clipboard.
+  *

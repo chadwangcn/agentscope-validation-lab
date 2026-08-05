@@ -1,0 +1,37 @@
+# BEGIN AGENTSCOPE LAB PUBLIC INGRESS
+http://__AGENTSCOPE_UI_HOST__ {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy 172.19.0.1:15173 {
+		header_up Host 127.0.0.1:15173
+		header_up X-Forwarded-Proto http
+	}
+}
+
+http://__AGENTSCOPE_API_HOST__ {
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy 172.19.0.1:18080 {
+		header_up X-Forwarded-Proto http
+	}
+}
+
+http://__LAB_HOST__ {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	reverse_proxy 172.19.0.1:18280 {
+		header_up X-Forwarded-Proto http
+	}
+}
+# END AGENTSCOPE LAB PUBLIC INGRESS

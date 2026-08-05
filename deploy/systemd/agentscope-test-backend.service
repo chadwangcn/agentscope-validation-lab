@@ -1,0 +1,21 @@
+[Unit]
+Description=AgentScope 2.0.6dev test Agent Service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/agentscope-2.0.6dev/source/examples/agent_service
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/opt/agentscope-2.0.6dev/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=BIND_HOST=127.0.0.1
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do /usr/bin/docker exec agentscope-206dev-redis redis-cli ping 2>/dev/null | /usr/bin/grep -q PONG && exit 0; sleep 1; done; exit 1'
+ExecStart=/opt/agentscope-2.0.6dev/venv/bin/uvicorn main:app --host ${BIND_HOST} --port 18080
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

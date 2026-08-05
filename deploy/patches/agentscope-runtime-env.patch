@@ -1,0 +1,62 @@
+diff --git a/examples/agent_service/main.py b/examples/agent_service/main.py
+--- a/examples/agent_service/main.py
++++ b/examples/agent_service/main.py
+@@ -17,15 +17,19 @@ from agentscope.permission import PermissionContext, PermissionMode
+ from agentscope.rag import QdrantStore
+
+-default_mcps = [
+-    MCPClient(
+-        name="browser-use",
+-        mcp_config=StdioMCPConfig(
+-            command="npx",
+-            args=["@playwright/mcp@latest"],
+-        ),
+-        is_stateful=True,
+-    ),
+-]
++default_mcps = []
++if os.getenv("AGENTSCOPE_ENABLE_BROWSER_MCP", "true").lower() in {
++    "1",
++    "true",
++    "yes",
++    "on",
++}:
++    default_mcps.append(
++        MCPClient(
++            name="browser-use",
++            mcp_config=StdioMCPConfig(
++                command="npx",
++                args=["@playwright/mcp@latest"],
++            ),
++            is_stateful=True,
++        ),
++    )
+
+ if os.getenv("AMAP_API_KEY"):
+@@ -42,8 +46,8 @@ if os.getenv("AMAP_API_KEY"):
+     )
+
+ storage = RedisStorage(
+-    host="localhost",
+-    port=6379,
++    host=os.getenv("AGENTSCOPE_REDIS_HOST", "localhost"),
++    port=int(os.getenv("AGENTSCOPE_REDIS_PORT", "6379")),
+ )
+
+ vector_store = QdrantStore(location=":memory:")
+@@ -62,10 +66,13 @@ app = create_app(
+     #     port=6379,
+     # ),
+     workspace_manager=LocalWorkspaceManager(
+-        basedir=os.path.join(
+-            os.path.dirname(os.path.abspath(__file__)),
+-            "workspaces",
++        basedir=os.getenv(
++            "AGENTSCOPE_WORKSPACE_DIR",
++            os.path.join(
++                os.path.dirname(os.path.abspath(__file__)),
++                "workspaces",
++            ),
+         ),
+         # The default MCP servers that will be added into the workspace
+         default_mcps=default_mcps,

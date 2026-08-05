@@ -1,0 +1,17 @@
+[Unit]
+Description=AgentScope 2.0.6dev test Web UI
+After=network-online.target agentscope-test-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/agentscope-2.0.6dev/source/examples/web_ui
+Environment=BIND_HOST=127.0.0.1
+ExecStart=/usr/bin/corepack pnpm --filter frontend preview --host ${BIND_HOST} --port 15173
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

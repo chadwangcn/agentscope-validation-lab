@@ -1,0 +1,27 @@
+[Unit]
+Description=Talk Think Memory Lab API
+After=network-online.target docker.service talk-think-memory-reme.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=talkthinklab
+Group=talkthinklab
+WorkingDirectory=/opt/talk-think-memory-lab/source
+EnvironmentFile=/etc/talk-think-memory-lab/lab.env
+EnvironmentFile=-/etc/talk-think-memory-lab/speech.env
+Environment=PYTHONUNBUFFERED=1
+Environment=BIND_HOST=127.0.0.1
+ExecStart=/opt/talk-think-memory-lab/venv/bin/uvicorn app.main:app --host ${BIND_HOST} --port 18280 --timeout-graceful-shutdown 10
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/talk-think-memory-lab
+
+[Install]
+WantedBy=multi-user.target

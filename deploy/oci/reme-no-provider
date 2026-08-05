@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+# Non-secret sentinel: initializes ReME's optional model adapter without making
+# a provider call during infrastructure-only health and version checks.
+: "${LLM_API_KEY:=validation-disabled-no-provider-call}"
+export LLM_API_KEY
+
+exec reme start "$@"

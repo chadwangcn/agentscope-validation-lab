@@ -1,0 +1,17 @@
+DOCS_CHANNEL=2.0.6dev
+PROJECT_REPOSITORY=https://github.com/chadwangcn/agentscope-validation-lab.git
+SOURCE_REPOSITORY=https://github.com/agentscope-ai/agentscope.git
+SOURCE_COMMIT=9edf84602c3af9399808afa448cd222f8fe1f7f9
+RUNTIME_OVERLAY=deploy/patches/agentscope-runtime-env.patch
+WEB_UI_OVERLAY=deploy/patches/agentscope-web-ui-ip-path.patch
+GHCR_AGENT_SERVICE=ghcr.io/chadwangcn/agentscope-validation-lab-agentscope-service
+GHCR_AGENT_WEB=ghcr.io/chadwangcn/agentscope-validation-lab-agentscope-web
+GHCR_MEMORY_LAB=ghcr.io/chadwangcn/agentscope-validation-lab-memory-lab
+WEB_UI_PUBLIC_BASE=/agentscope/
+PUBLIC_UI_URL=http://14.103.221.4/agentscope/
+PUBLIC_API_URL=http://14.103.221.4/agentscope-api/
+PUBLIC_AUTH=HTTP_BASIC_AUTH_BCRYPT
+DEPLOYED_PACKAGE_VERSION_EXPECTED=2.0.5
+BACKEND_LISTEN=127.0.0.1:18080
+FRONTEND_LISTEN=127.0.0.1:15173
+REDIS_LISTEN=127.0.0.1:6379
