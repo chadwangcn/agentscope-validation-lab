@@ -7,17 +7,23 @@ RUN npm ci
 COPY talk-think-memory-lab/frontend/ ./
 RUN npm run build
 
-FROM python:3.12-slim-bookworm AS wheels
+FROM python:3.12-slim-bookworm AS build
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates \
-    && find /var/lib/apt/lists -mindepth 1 -delete
+    && apt-get install -y --no-install-recommends build-essential \
+    && find /var/lib/apt/lists -mindepth 1 -delete \
+    && python -m venv /opt/venv
+COPY .build/agentscope-source/ /agentscope-source/
 WORKDIR /source
 COPY talk-think-memory-lab/pyproject.toml ./
 COPY talk-think-memory-lab/app ./app
-RUN python -m pip wheel --wheel-dir /wheels .
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install /agentscope-source \
+    && python -m pip install /source
 
 FROM python:3.12-slim-bookworm
 
@@ -29,15 +35,15 @@ LABEL org.opencontainers.image.title="Talk Think Memory validation lab" \
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
     LAB_DATA_DIR=/var/lib/talk-think-memory-lab \
     LAB_FRONTEND_DIST=/opt/talk-think-memory-lab/frontend/dist \
     REME_BASE_URL=http://reme:12333 \
     NEO4J_URI=bolt://neo4j:7687
 
-COPY --from=wheels /wheels /wheels
-RUN python -m pip install --no-index --find-links=/wheels talk-think-memory-lab==0.1.0 \
-    && find /wheels -mindepth 1 -delete \
-    && groupadd --system --gid 10002 talkthinklab \
+COPY --from=build /opt/venv /opt/venv
+RUN groupadd --system --gid 10002 talkthinklab \
     && useradd --system --uid 10002 --gid talkthinklab \
       --home-dir /var/lib/talk-think-memory-lab talkthinklab \
     && install -d -o talkthinklab -g talkthinklab \

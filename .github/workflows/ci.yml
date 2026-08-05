@@ -62,7 +62,10 @@ jobs:
           cache: pip
           cache-dependency-path: talk-think-memory-lab/pyproject.toml
       - name: Install Lab and test dependencies
-        run: python -m pip install -e './talk-think-memory-lab[test]'
+        run: |
+          ./scripts/prepare-agentscope-source.sh .build/agentscope-source
+          python -m pip install .build/agentscope-source
+          python -m pip install -e './talk-think-memory-lab[test]'
       - name: Run API tests
         run: python -m pytest -q talk-think-memory-lab/tests
       - name: Run ReME compatibility smoke

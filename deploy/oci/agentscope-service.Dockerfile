@@ -1,12 +1,18 @@
 # syntax=docker/dockerfile:1.7
-FROM python:3.12-slim-bookworm AS wheels
+FROM python:3.12-slim-bookworm AS build
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && find /var/lib/apt/lists -mindepth 1 -delete \
+    && python -m venv /opt/venv
 WORKDIR /source
 COPY .build/agentscope-source/ /source/
-RUN python -m pip wheel --wheel-dir /wheels \
-    "/source[service,storage-redis,tools,rag,vdb-qdrant]"
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install "/source[service,storage-redis,tools,rag,vdb-qdrant]"
 
 FROM python:3.12-slim-bookworm
 
@@ -18,21 +24,20 @@ LABEL org.opencontainers.image.title="AgentScope validation service" \
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
     PYTHONPATH=/opt/agentscope/source/src \
     AGENTSCOPE_REDIS_HOST=redis \
     AGENTSCOPE_REDIS_PORT=6379 \
     AGENTSCOPE_ENABLE_BROWSER_MCP=false \
     AGENTSCOPE_WORKSPACE_DIR=/var/lib/agentscope/workspaces
 
-COPY --from=wheels /wheels /wheels
-RUN python -m pip install --no-index --find-links=/wheels \
-      "agentscope[service,storage-redis,tools,rag,vdb-qdrant]==2.0.5" \
-    && find /wheels -mindepth 1 -delete \
-    && groupadd --system --gid 10001 agentscope \
+COPY --from=build /opt/venv /opt/venv
+RUN groupadd --system --gid 10001 agentscope \
     && useradd --system --uid 10001 --gid agentscope --home-dir /var/lib/agentscope agentscope \
     && install -d -o agentscope -g agentscope /var/lib/agentscope/workspaces
 
-COPY --from=wheels --chown=agentscope:agentscope /source /opt/agentscope/source
+COPY --from=build --chown=agentscope:agentscope /source /opt/agentscope/source
 WORKDIR /opt/agentscope/source/examples/agent_service
 USER 10001:10001
 EXPOSE 18080
